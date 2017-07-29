@@ -115,9 +115,10 @@ actualid_list = []
 actualid_300 = []
 senddatelist = []
 camplist = []
+res_info_list = []
 
 iterate = 0
-iterate_limit = 3
+iterate_limit = -1
 
 ptoken6 = ptoken
 
@@ -147,6 +148,7 @@ while moreLeads == True:
 
     for lead in res_dict['result']:
         
+        '''
         if lead['leadId'] in [elem for sublist in senddatelist for elem in sublist]:
             
             for entry in senddatelist:
@@ -168,16 +170,14 @@ while moreLeads == True:
                     
         else:
             
-            actualid_list.append(lead['leadId'])
-            leadId_list = leadId_list + "," + str(lead['leadId']) 
+        '''
             
-            #Collecting Activity Date
-            
-            senddatelist.append([lead['leadId'], isodateconverter(lead['activityDate']), dp.parse(lead['activityDate'])])
+        actualid_list.append([lead['leadId'], lead['campaignId']])
+        leadId_list = leadId_list + "," + str(lead['leadId']) 
         
-            #Collecting Campaign IDs
-                    
-            camplist.append([lead['leadId'], lead['campaignId']])
+        #Collecting Activity Date
+        
+        senddatelist.append([lead['leadId'], isodateconverter(lead['activityDate']), dp.parse(lead['activityDate'])])
     
     leadId_list = leadId_list[1:]
     
@@ -201,18 +201,22 @@ while moreLeads == True:
         moreLeads = False
     
     iterate += 1
-
+    
+for lead in actualid_list:
+        
+    res_info_list.append({ "id": lead[0], "campaignId": lead[1]})
+    
 #Calling info on Lead by LeadId
 
 print ("\nCalling info on Leads...\n")
 
-res_info_list = []
 campid_list = []
 response = ""
 campids = ''
 call = ""
 
 iterate = 0
+n = -1
 
 for chunk in actualid_300:
     
@@ -233,10 +237,16 @@ for chunk in actualid_300:
     
     #Add Lead Info To List
     
-    for lead in res_info['result']:
+    for something in res_info_list:
+    
+        for item in res_info['result']:
         
-        res_info_list.append(lead)
-        
+            if something['id'] == item['id']:
+                
+                for key in item.keys():
+                    
+                    something[key] = item[key]
+            
     #debugging iteration
     if iterate == iterate_limit:
         
@@ -246,9 +256,9 @@ for chunk in actualid_300:
         
 #Collecting Campaign Names
 
-for ID in camplist:
+for ID in actualid_list:
     
-    if (ID[1] in campid_list) == False:
+    if ID[1] in campid_list == False:
         
         campid_list.append(ID[1])
 
@@ -265,7 +275,7 @@ res_campnme = json.loads(response)
 
 for camp in res_campnme['result']:
     
-    for ID in camplist:
+    for ID in actualid_list:
         
         if camp['id'] == ID[1]:
                 
@@ -708,21 +718,7 @@ print ("\nCreating Lead Entries from data collected...")
         
 for lead in res_info_list:
     
-    #print (lead['id'])
-    
-    for ID in camplist:
-        
-        if ID[0] == lead['id']:
-            
-            lead['Campaign ID'] = ID[1]
-
-            if len(ID) == 2:
-                
-                lead['Campaign Name'] = "Not Found"
-                
-            else:
-                
-                lead['Campaign Name'] = ID[2]
+    #EDIT HERE   
 
     for datelist6 in senddatelist:
         
@@ -807,12 +803,21 @@ for lead in res_info_list:
         lead['Email Opened'] = "Email has not been opened"
     
     #Tidy Up
+    
+    try:
+    
+        lead['createdAt'] = isodateconverter(lead['createdAt'])
+        lead['updatedAt'] = isodateconverter(lead['updatedAt'])
         
-    lead['createdAt'] = isodateconverter(lead['createdAt'])
-    lead['updatedAt'] = isodateconverter(lead['updatedAt'])
+    except KeyError:
         
+        res_info_list.remove(lead)
+        continue
+            
     lead['Id'] = lead['id']
     del lead['id']
+    lead['Campaign ID'] = lead['campaignId']
+    del lead['campaignId']
     lead['First Name'] = lead['firstName']
     del lead['firstName']
     lead['Last Name'] = lead['lastName']
@@ -823,7 +828,7 @@ for lead in res_info_list:
     del lead['createdAt']
     lead['Updated At'] = lead['updatedAt']
     del lead['updatedAt']
-    
+
     #print (lead)
     
     res_info_fin.append(lead)
@@ -875,12 +880,12 @@ for camp in camp_dict_list:
 print ("Done")
 
 #Counting dupes (same leadid and same campaign)
-
+'''
 dupecount = 0
 
 res_info_dupe = res_info_fin
 
-'''
+
 for lead in res_info_dupe:
     
     res_info_dupe.remove(lead)
@@ -900,7 +905,7 @@ timeofrun = str(date.today())
     
 with safe_open_w(path + 'Call_result_' + timeofrun + '.csv') as csvfile:
     
-    fieldnames = ['Id', 'First Name', 'Last Name', 'Email', 'Updated At', 'Created At', 'Campaign ID', 'Campaign Name', 'Email Sent Date', 'Email Delivery Date', 'Email Opened', 'Email Bounced', 'Bounced Reason', 'Email Soft Bounced', 'Soft Bounced Reason', 'Clicked on link', 'Visited Web Page', 'Unsubscribed']
+    fieldnames = ['Id', 'First Name', 'Last Name', 'Email', 'Updated At', 'Created At', 'Campaign ID', 'Email Sent Date', 'Email Delivery Date', 'Email Opened', 'Email Bounced', 'Bounced Reason', 'Email Soft Bounced', 'Soft Bounced Reason', 'Clicked on link', 'Visited Web Page', 'Unsubscribed']
     writer = csv.DictWriter(csvfile, fieldnames = fieldnames)
     
     writer.writeheader()
